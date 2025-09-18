@@ -1,0 +1,50 @@
+name: Destroy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to destroy'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      confirm_destroy:
+        description: 'Type "DESTROY" to confirm'
+        required: true
+        type: string
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.confirm_destroy == 'DESTROY' }}
+    env:
+      KUBE_NAMESPACE: ${{ inputs.environment == 'prod' && secrets.KUBE_NAMESPACE_PROD || inputs.environment == 'staging' && secrets.KUBE_NAMESPACE_STAGING || secrets.KUBE_NAMESPACE_DEV }}
+      KUBECONFIG: ${{ inputs.environment == 'prod' && secrets.KUBECONFIG_PROD || inputs.environment == 'staging' && secrets.KUBECONFIG_STAGING || secrets.KUBECONFIG_DEV }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "latest"
+
+      - name: Uninstall Helm releases
+        run: |
+          helm uninstall ui --namespace $KUBE_NAMESPACE || true
+          helm uninstall order --namespace $KUBE_NAMESPACE || true
+          helm uninstall checkout --namespace $KUBE_NAMESPACE || true
+          helm uninstall catalog --namespace $KUBE_NAMESPACE || true
+          helm uninstall cart --namespace $KUBE_NAMESPACE || true
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init & Destroy
+        run: |
+          terraform init
+          terraform destroy -auto-approve
+        working-directory: ./environments/${{ inputs.environment }}
