@@ -1,0 +1,6 @@
+##The parent Chart also shared 
+apiVersion: v2
+name: retail
+description: A helm chart for deploying microservices to EKS
+type: application
+version: 0.1.0

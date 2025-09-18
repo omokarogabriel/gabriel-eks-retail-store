@@ -1,0 +1,46 @@
+# replicaCount: 2
+
+# image:
+#   repository: public.ecr.aws/aws-containers/retail-store-sample-ui
+#   tag: "1.2.4"
+
+# service:
+#   type: ClusterIP
+#   port: 8080
+
+# resources: {}
+
+# serviceAccount:
+#   name: { { .Values.serviceAccount.name } }
+#   roleArn: arn:aws:iam::<account-id>:role/<ui-role-name>
+
+# namespace: { { .Values.namespace | default "default" } }
+
+replicaCount: 2
+
+image:
+  repository: public.ecr.aws/aws-containers/retail-store-sample-ui
+  tag: "1.2.4"
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources: {}
+
+serviceAccount:
+  name: { { .Values.serviceAccount.name } }
+  roleArn: arn:aws:iam::<account-id>:role/<ui-role-name>
+
+namespace: { { .Values.namespace | default "default" } }
+
+microservices:
+  cartUrl: http://cart.{{ .Values.namespace }}.svc.cluster.local:8081
+  catalogUrl: http://catalog.{{ .Values.namespace }}.svc.cluster.local:8082
+  checkoutUrl: http://checkout.{{ .Values.namespace }}.svc.cluster.local:8083
+  orderUrl: http://order.{{ .Values.namespace }}.svc.cluster.local:8084
+  dynamodbTableName: dynamodb-table-name-from-terraform
+  mysqlEndpoint: mysql-endpoint-from-terraform
+  redisEndpoint: redis-endpoint-from-terraform
+  redisPort: redis-port-from-terraform
+  postgresEndpoint: postgres-endpoint-from-terraform

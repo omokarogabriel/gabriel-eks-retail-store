@@ -1,0 +1,29 @@
+##The parent value also shared
+replicaCount: 2
+
+image:
+  repository: <image-repo>
+  tag: <tag-if-any>
+  pullPolicy: IfNotpresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  annotations: {}
+  hosts: []
+  tls: []
+
+envFromSecrets:
+  enabled: false
+  secretName: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi  
+  limits: 
+    cpu: 200m
+    memory: 256Mi

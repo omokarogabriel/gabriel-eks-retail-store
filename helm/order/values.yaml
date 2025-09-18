@@ -1,0 +1,19 @@
+replicaCount: 2
+
+image:
+  repository: public.ecr.aws/aws-containers/retail-store-sample-orders
+  tag: "1.2.4"
+
+service:
+  type: ClusterIP
+  port: 8084
+
+resources: {}
+
+serviceAccount:
+  name: { { .Values.serviceAccount.name } }
+  roleArn: arn:aws:iam::<account-id>:role/<order-role-name>
+
+namespace: { { .Values.namespace | default "default" } }
+
+postgresEndpoint: postgres-endpoint-from-terraform

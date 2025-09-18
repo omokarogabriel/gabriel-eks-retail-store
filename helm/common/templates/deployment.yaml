@@ -1,0 +1,46 @@
+###Template deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: {{ include "retail.fullname" . }}
+    labels:
+        app: {{ include "retail.name" . }}
+spec:
+    replicas: {{ .Values.replicaCount }}
+    selector:
+        matchLabels:
+            app: {{ include "retail.name" . }}
+    template:
+        metadata: 
+            labels:
+                app: {{ include "retail.name" . }}
+        spec:
+                        containers:
+                                - name: {{ .Chart.Name }}
+                                    image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+                                    ports: 
+                                        - containerPort: {{ .Values.service.port }}
+                                    resources:
+                                    {{- toYaml .Values.resources | nindent 12  }}
+                                    env:
+                                        {{- if .Values.dynamodbTableName }}
+                                        - name: DYNAMODB_TABLE_NAME
+                                          value: {{ .Values.dynamodbTableName }}
+                                        {{- end }}
+                                        {{- if .Values.mysqlEndpoint }}
+                                        - name: MYSQL_ENDPOINT
+                                          value: {{ .Values.mysqlEndpoint }}
+                                        {{- end }}
+                                        {{- if .Values.redisEndpoint }}
+                                        - name: REDIS_ENDPOINT
+                                          value: {{ .Values.redisEndpoint }}
+                                        {{- end }}
+                                        {{- if .Values.redisPort }}
+                                        - name: REDIS_PORT
+                                          value: "{{ .Values.redisPort }}"
+                                        {{- end }}
+                                        {{- if .Values.postgresEndpoint }}
+                                        - name: POSTGRES_ENDPOINT
+                                          value: {{ .Values.postgresEndpoint }}
+                                        {{- end }}
+                        serviceAccountName: {{ .Values.serviceAccount.name }}

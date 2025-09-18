@@ -1,0 +1,15 @@
+public_subnet_cidrs    = ["10.0.1.0/24"]
+private_subnet_cidrs   = ["10.0.2.0/24"]
+environment           = "dev"
+vpc_name              = "dev-vpc-retail-store"
+cidr                  = "10.0.0.0/16"
+sa_role_name          = "dev-retail-sa-role"
+namespace             = "dev-retail"
+service_account_name  = "dev-retail-sa"
+rds_subnet_group_name = "dev-retail-rds-subnet-group"
+postgres_username     = "postgres_admin"
+mysql_username        = "mysql_admin"
+dynamodb_name           = "dev-retail-dynamodb"
+redis_subnet_group_name = "dev-retail-redis-subnet-group"
+postgres_password       = "temp_postgres_password"
+mysql_password          = "temp_mysql_password"

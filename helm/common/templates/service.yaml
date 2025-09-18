@@ -1,0 +1,22 @@
+###The parent service also shared
+# apiVersion: v1
+# kind: Service
+# metadata:
+#     name: {{ include "retail.fullname" . }}
+# spec:
+#     type: {{ .Values.service.type }}
+#     ports:
+#         - port: {{ .Values.service.port }}
+#           targetPort: {{ .Values.service.port }}
+#     selector:
+#         app: {{ include "retail.name" . }}
+
+Reference the IAM Role in a Kubernetes Service Account (Helm Chart)
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: { { .Values.serviceAccount.name } }
+  namespace: { { .Values.namespace | default "default" } }
+  annotations:
+    eks.amazonaws.com/role-arn: { { .Values.serviceAccount.roleArn } }
