@@ -80,6 +80,243 @@ gabriel_retail_store/
 └── README.md
 ```
 
+```
+.
+├── environments
+│   ├── dev
+│   │   ├── backend.tf
+│   │   ├── dev
+│   │   ├── main.tf
+│   │   ├── output.tf
+│   │   ├── terraform.tfvars
+│   │   └── variables.tf
+│   ├── prod
+│   │   ├── backend.tf
+│   │   ├── main.tf
+│   │   ├── output.tf
+│   │   └── terraform.tfvars
+│   └── staging
+│       ├── backend.tf
+│       ├── main.tf
+│       ├── output.tf
+│       └── terraform.tfvars
+├── helm
+│   ├── cart
+│   │   └── values.yaml
+│   ├── catalog
+│   │   └── values.yaml
+│   ├── checkout
+│   │   └── values.yaml
+│   ├── common
+│   │   ├── Chart.yaml
+│   │   ├── templates
+│   │   │   ├── deployment.yaml
+│   │   │   ├── ingress.yaml
+│   │   │   └── service.yaml
+│   │   └── values.yaml
+│   ├── order
+│   │   └── values.yaml
+│   └── ui
+│       └── values.yaml
+├── modules
+│   ├── application
+│   │   ├── monitoring_logging
+│   │   │   ├── main.tf
+│   │   │   ├── output.tf
+│   │   │   └── variable.tf
+│   │   └── retail_app
+│   │       ├── main.tf
+│   │       ├── output.tf
+│   │       └── variable.tf
+│   └── infrastructure
+│       ├── dynamoDB
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── eks_cluster
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── elasticache
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── iam
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── ingress_alb
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── namespace_helm_release
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── networking
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── rds
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── secrets
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       └── security-group
+│           ├── main.tf
+│           ├── output.tf
+│           └── variable.tf
+├── provider
+│   ├── main.tf
+│   ├── output.tf
+│   └── variable.tf
+└── README.md
+```
+
+```
+.
+├── environments
+│   ├── dev
+│   │   ├── backend.tf
+│   │   ├── dev
+│   │   ├── main.tf
+│   │   ├── output.tf
+│   │   └── variables.tf
+│   ├── prod
+│   │   ├── backend.tf
+│   │   ├── main.tf
+│   │   ├── output.tf
+│   │   └── terraform.tfvars
+│   └── staging
+│       ├── backend.tf
+│       ├── main.tf
+│       ├── output.tf
+│       └── terraform.tfvars
+├── environments
+│   ├── dev
+│   │   ├── backend.tf
+│   │   ├── dev
+│   │   ├── main.tf
+│   │   ├── output.tf
+│   │   ├── .terraform
+│   │   │   ├── modules
+│   │   │   │   └── modules.json
+│   │   │   └── providers
+│   │   │       └── registry.terraform.io
+│   │   │           └── hashicorp
+│   │   │               ├── aws
+│   │   │               │   └── 6.14.0
+│   │   │               │       └── linux_amd64
+│   │   │               │           ├── LICENSE.txt
+│   │   │               │           └── terraform-provider-aws_v6.14.0_x5
+│   │   │               ├── kubernetes
+│   │   │               │   └── 2.38.0
+│   │   │               │       └── linux_amd64
+│   │   │               │           ├── LICENSE.txt
+│   │   │               │           └── terraform-provider-kubernetes_v2.38.0_x5
+│   │   │               └── tls
+│   │   │                   └── 4.1.0
+│   │   │                       └── linux_amd64
+│   │   │                           ├── LICENSE.txt
+│   │   │                           └── terraform-provider-tls_v4.1.0_x5
+│   │   ├── .terraform.lock.hcl
+│   │   ├── terraform.tfvars
+│   │   └── variables.tf
+│   ├── prod
+│   │   ├── backend.tf
+│   │   ├── main.tf
+│   │   ├── output.tf
+│   │   └── terraform.tfvars
+│   └── staging
+│       ├── backend.tf
+│       ├── main.tf
+│       ├── output.tf
+│       └── terraform.tfvars
+├── .github
+│   └── workflows
+│       ├── deploy.yaml
+│       └── destroy.yaml
+├── .gitignore
+├── helm
+│   ├── cart
+│   │   └── values.yaml
+│   ├── catalog
+│   │   └── values.yaml
+│   ├── checkout
+│   │   └── values.yaml
+│   ├── common
+│   │   ├── Chart.yaml
+│   │   ├── templates
+│   │   │   ├── deployment.yaml
+│   │   │   ├── ingress.yaml
+│   │   │   └── service.yaml
+│   │   └── values.yaml
+│   ├── order
+│   │   └── values.yaml
+│   └── ui
+│       └── values.yaml
+├── modules
+│   ├── application
+│   │   ├── monitoring_logging
+│   │   │   ├── main.tf
+│   │   │   ├── output.tf
+│   │   │   └── variable.tf
+│   │   └── retail_app
+│   │       ├── main.tf
+│   │       ├── output.tf
+│   │       └── variable.tf
+│   └── infrastructure
+│       ├── dynamoDB
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── eks_cluster
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── elasticache
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── iam
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── ingress_alb
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── namespace_helm_release
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── networking
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── rds
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       ├── secrets
+│       │   ├── main.tf
+│       │   ├── output.tf
+│       │   └── variable.tf
+│       └── security-group
+│           ├── main.tf
+│           ├── output.tf
+│           └── variable.tf
+├── provider
+│   ├── main.tf
+│   ├── output.tf
+│   └── variable.tf
+└── README.md
+```
+
+
 ---
 
 ## AWS Resources Created (Comprehensive)
