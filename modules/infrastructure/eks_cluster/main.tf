@@ -44,7 +44,7 @@ data "aws_subnets" "private" {
 resource "aws_eks_cluster" "retail_eks" {
   name     = "${var.vpc_name}-eks-cluster"
   role_arn = data.aws_iam_role.eks_cluster_role.arn
-  version  = "1.28"
+  version  = "1.33"
 
   vpc_config {
     subnet_ids              = concat(data.aws_subnets.public.ids, data.aws_subnets.private.ids)

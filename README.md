@@ -572,7 +572,7 @@ gabriel_retail_store/
 #### **EKS Cluster**
 - **Resource**: `aws_eks_cluster.retail_eks`
 - **Configuration**:
-  - **Version**: 1.28 (latest stable)
+  - **Version**: 1.33 (latest stable)
   - **Service Role**: EKS cluster service role
   - **VPC Configuration**:
     - **Subnets**: Both public and private subnets for flexibility
