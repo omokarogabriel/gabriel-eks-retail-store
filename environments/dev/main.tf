@@ -1,3 +1,7 @@
+provider "aws" {
+  region = "us-east-1"
+}
+
 module "networking" {
   source              = "../../modules/infrastructure/networking"
   public_subnet_cidrs = var.public_subnet_cidrs
@@ -21,29 +25,36 @@ module "iam" {
   service_account_name = var.service_account_name
 }
 
+module "secrets" {
+  source            = "../../modules/infrastructure/secrets"
+  vpc_name          = var.vpc_name
+  namespace         = var.namespace
+  postgres_password = var.postgres_password
+  mysql_password    = var.mysql_password
+}
+
+module "rds" {
+  source                = "../../modules/infrastructure/rds"
+  rds_subnet_group_name = var.rds_subnet_group_name
+  vpc_name              = var.vpc_name
+  postgres_username     = var.postgres_username
+  mysql_username        = var.mysql_username
+
+  depends_on = [
+    module.networking,
+    module.security_group,
+    module.secrets
+  ]
+}
+
 module "eks_cluster" {
   source   = "../../modules/infrastructure/eks_cluster"
   vpc_name = var.vpc_name
   
   depends_on = [
     module.networking,
-    module.security_group
-  ]
-}
-
-module "rds" {
-  source                 = "../../modules/infrastructure/rds"
-  rds_subnet_group_name  = var.rds_subnet_group_name
-  vpc_name               = var.vpc_name
-  postgres_username      = var.postgres_username
-  mysql_username         = var.mysql_username
-  postgres_password      = var.postgres_password
-  mysql_password         = var.mysql_password
-
-  depends_on = [
-    module.networking,
     module.security_group,
-    module.secrets
+    module.iam
   ]
 }
 
@@ -63,22 +74,7 @@ module "elasticache" {
     module.security_group
   ]
 }
-module "secrets" {
-  source            = "../../modules/infrastructure/secrets"
-  vpc_name          = var.vpc_name
-  namespace         = var.namespace
-  postgres_password = var.postgres_password
-  mysql_password    = var.mysql_password
-}
-module "ingress_alb" {
-  source   = "../../modules/infrastructure/ingress_alb"
-#   vpc_name = var.vpc_name
-  
-  depends_on = [
-    module.networking,
-    module.eks_cluster
-  ]
-}
+
 module "namespace_helm_release" {
   source    = "../../modules/infrastructure/namespace_helm_release"
   namespace = var.namespace
@@ -87,25 +83,5 @@ module "namespace_helm_release" {
   depends_on = [
     module.networking,
     module.security_group
-  ]
-}
-module "retail_app" {
-  source = "../../modules/application/retail_app"
-  
-  depends_on = [
-    module.eks_cluster,
-    module.rds,
-    module.dynamodb,
-    module.elasticache,
-    module.secrets
-  ]
-}
-
-module "monitoring_logging" {
-  source = "../../modules/application/monitoring_logging"
-  
-  depends_on = [
-    module.eks_cluster,
-    module.namespace_helm_release
   ]
 }

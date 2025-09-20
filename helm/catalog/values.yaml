@@ -8,12 +8,18 @@ service:
   type: ClusterIP
   port: 8082
 
-resources: {}
+resources:
+  limits:
+    cpu: 350m
+    memory: 320Mi
+  requests:
+    cpu: 175m
+    memory: 160Mi
 
 serviceAccount:
-  name: { { .Values.serviceAccount.name } }
+  name: {{ .Values.serviceAccount.name }}
   roleArn: arn:aws:iam::<account-id>:role/<catalog-role-name>
 
-namespace: { { .Values.namespace | default "default" } }
+namespace: {{ .Values.namespace | default "default" }}
 
 mysqlEndpoint: mysql-endpoint-from-terraform

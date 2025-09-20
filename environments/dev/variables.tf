@@ -1,3 +1,8 @@
+variable "region" {
+  type        = string
+  description = "AWS region to deploy resources"    
+}
+
 variable "public_subnet_cidrs" {
   type        = list(string)
   description = "List of CIDR blocks for public subnets"

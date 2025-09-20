@@ -16,7 +16,7 @@ Reference the IAM Role in a Kubernetes Service Account (Helm Chart)
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: { { .Values.serviceAccount.name } }
-  namespace: { { .Values.namespace | default "default" } }
+  name: {{ .Values.serviceAccount.name }}
+  namespace: {{ .Values.namespace | default "default" }}
   annotations:
-    eks.amazonaws.com/role-arn: { { .Values.serviceAccount.roleArn } }
+    eks.amazonaws.com/role-arn: {{ .Values.serviceAccount.roleArn }}

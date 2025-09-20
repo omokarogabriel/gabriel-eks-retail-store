@@ -73,6 +73,7 @@ resource "aws_db_instance" "postgres" {
   db_name                                 = "retail"
   username                                = var.postgres_username
   password                                = data.aws_secretsmanager_secret_version.postgres_password.secret_string
+  iam_database_authentication_enabled    = true
 
   db_subnet_group_name                    = aws_db_subnet_group.rds_subnet_group.name
   vpc_security_group_ids                  = [data.aws_security_group.rds_sg.id]
@@ -120,6 +121,7 @@ resource "aws_db_instance" "mysql" {
   db_name                                  = "retail"
   username                                 = var.mysql_username
   password                                 = data.aws_secretsmanager_secret_version.mysql_password.secret_string
+  iam_database_authentication_enabled     = true
   
   db_subnet_group_name                     = aws_db_subnet_group.rds_subnet_group.name
 #   parameter_group_name   = aws_db_parameter_group.retail_db.name

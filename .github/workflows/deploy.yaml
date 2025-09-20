@@ -22,12 +22,21 @@ on:
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     env:
       KUBE_NAMESPACE: ${{ github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' && secrets.KUBE_NAMESPACE_PROD || github.event_name == 'workflow_dispatch' && inputs.environment == 'staging' && secrets.KUBE_NAMESPACE_STAGING || secrets.KUBE_NAMESPACE_DEV }}
       KUBECONFIG: ${{ github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' && secrets.KUBECONFIG_PROD || github.event_name == 'workflow_dispatch' && inputs.environment == 'staging' && secrets.KUBECONFIG_STAGING || secrets.KUBECONFIG_DEV }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' && secrets.AWS_ROLE_ARN_PROD || github.event_name == 'workflow_dispatch' && inputs.environment == 'staging' && secrets.AWS_ROLE_ARN_STAGING || secrets.AWS_ROLE_ARN_DEV }}
+          aws-region: us-east-1
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -49,7 +58,7 @@ jobs:
         run: |
           terraform init
           terraform apply -auto-approve
-        working-directory: ./modules/infrastructure
+        working-directory: ./environments/${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
 
       - name: Extract Terraform Outputs
         id: tfoutputs
@@ -59,7 +68,7 @@ jobs:
           echo "REDIS_ENDPOINT=$(terraform output -raw redis_cluster_endpoint)" >> $GITHUB_ENV
           echo "REDIS_PORT=$(terraform output -raw redis_cluster_port)" >> $GITHUB_ENV
           echo "DYNAMODB_TABLE_NAME=$(terraform output -raw dynamodb_table_name)" >> $GITHUB_ENV
-        working-directory: ./modules/infrastructure
+        working-directory: ./environments/${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
 
       - name: Install yq
         run: |
@@ -89,10 +98,13 @@ jobs:
         run: |
           helm repo add eks https://aws.github.io/eks-charts
           helm repo update
+          LB_ROLE_ARN=$(terraform output -raw aws_load_balancer_controller_role_arn)
           helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
             --namespace kube-system \
             --set clusterName=$KUBE_NAMESPACE \
-            --set serviceAccount.create=true
+            --set serviceAccount.create=true \
+            --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=$LB_ROLE_ARN
+        working-directory: ./environments/${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
 
 
       - name: Deploy with Helm

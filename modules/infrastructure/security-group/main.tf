@@ -4,12 +4,18 @@
 ##The security group for redis
 ##The security group for dynamoDB
 
-
+# Data source to get VPC
+data "aws_vpc" "retail_vpc" {
+  filter {
+    name   = "tag:Name"
+    values = [var.vpc_name]
+  }
+}
 
 # Additional Security Group for EKS Worker Nodes
 resource "aws_security_group" "eks_nodes_sg" {
   name_prefix = "${var.vpc_name}-eks-nodes-"
-  vpc_id      = aws_vpc.retail_vpc.id
+  vpc_id      = data.aws_vpc.retail_vpc.id
 
   ingress {
     description = "Allow nodes to communicate with each other"
@@ -50,7 +56,7 @@ resource "aws_security_group" "eks_nodes_sg" {
 # Security Group for RDS
 resource "aws_security_group" "rds_sg" {
   name_prefix = "${var.vpc_name}-rds-"
-  vpc_id      = aws_vpc.retail_vpc.id
+  vpc_id      = data.aws_vpc.retail_vpc.id
 
   ingress {
     description = "MySQL/Aurora"
@@ -83,7 +89,7 @@ resource "aws_security_group" "rds_sg" {
 # Security Group for ElastiCache
 resource "aws_security_group" "elasticache_sg" {
   name_prefix = "${var.vpc_name}-elasticache-"
-  vpc_id      = aws_vpc.retail_vpc.id
+  vpc_id      = data.aws_vpc.retail_vpc.id
 
   ingress {
     description = "Redis"

@@ -36,12 +36,20 @@ service:
   type: ClusterIP
   port: 8081
 
-resources: {}
+resources:
+  limits:
+    cpu: 300m
+    memory: 256Mi
+  requests:
+    cpu: 150m
+    memory: 128Mi
 
 serviceAccount:
-  name: { { .Values.serviceAccount.name } }
+  name: {{ .Values.serviceAccount.name }}
   roleArn: arn:aws:iam::<account-id>:role/<cart-role-name>
 
-namespace: { { .Values.namespace | default "default" } }
+namespace: {{ .Values.namespace | default "default" }}
 
 dynamodbTableName: dynamodb-table-name-from-terraform
+
+

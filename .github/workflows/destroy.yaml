@@ -20,12 +20,21 @@ jobs:
   destroy:
     runs-on: ubuntu-latest
     if: ${{ inputs.confirm_destroy == 'DESTROY' }}
+    permissions:
+      id-token: write
+      contents: read
     env:
       KUBE_NAMESPACE: ${{ inputs.environment == 'prod' && secrets.KUBE_NAMESPACE_PROD || inputs.environment == 'staging' && secrets.KUBE_NAMESPACE_STAGING || secrets.KUBE_NAMESPACE_DEV }}
       KUBECONFIG: ${{ inputs.environment == 'prod' && secrets.KUBECONFIG_PROD || inputs.environment == 'staging' && secrets.KUBECONFIG_STAGING || secrets.KUBECONFIG_DEV }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ inputs.environment == 'prod' && secrets.AWS_ROLE_ARN_PROD || inputs.environment == 'staging' && secrets.AWS_ROLE_ARN_STAGING || secrets.AWS_ROLE_ARN_DEV }}
+          aws-region: us-east-1
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3

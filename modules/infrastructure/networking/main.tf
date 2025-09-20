@@ -1,7 +1,4 @@
-variable "environment" {
-  description = "The environment for the resources (e.g. dev, prod)"
-  type        = string
-}
+
 
 ####vpc creation, where the cidr block determine the number of subnets
 # Data source for availability zones

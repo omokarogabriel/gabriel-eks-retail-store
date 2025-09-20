@@ -5,12 +5,16 @@ resource "aws_dynamodb_table" "dynamodb" {
   hash_key                          = "dynamo_id"
 
   attribute {
-    name                            = "${var.dynamodb_name}_id"
+    name                            = "dynamo_id"
     type                            = "S"
   }
 
+  point_in_time_recovery {
+    enabled = true
+  }
+
   tags = {
-    Name                            = "${var.vpc_name}-rds-subnet-group"
+    Name                            = "${var.vpc_name}-dynamodb-table"
   }
 
 }

@@ -8,13 +8,19 @@ service:
   type: ClusterIP
   port: 8083
 
-resources: {}
+resources:
+  limits:
+    cpu: 400m
+    memory: 384Mi
+  requests:
+    cpu: 200m
+    memory: 192Mi
 
 serviceAccount:
-  name: { { .Values.serviceAccount.name } }
+  name: {{ .Values.serviceAccount.name }}
   roleArn: arn:aws:iam::<account-id>:role/<checkout-role-name>
 
-namespace: { { .Values.namespace | default "default" } }
+namespace: {{ .Values.namespace | default "default" }}
 
 redisEndpoint: redis-endpoint-from-terraform
 redisPort: redis-port-from-terraform
