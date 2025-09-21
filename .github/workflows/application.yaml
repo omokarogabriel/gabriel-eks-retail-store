@@ -34,21 +34,18 @@ jobs:
       - name: Set up Terraform (for outputs)
         uses: hashicorp/setup-terraform@v2
 
-      - name: Extract Terraform Outputs
+      - name: Set Infrastructure Endpoints
         run: |
-          terraform init
-          terraform refresh
-          echo "MYSQL_ENDPOINT=$(terraform output -raw mysql_instance_endpoint || echo 'mysql-endpoint-not-found')" >> $GITHUB_ENV
-          echo "POSTGRES_ENDPOINT=$(terraform output -raw postgres_instance_endpoint || echo 'postgres-endpoint-not-found')" >> $GITHUB_ENV
-          echo "REDIS_ENDPOINT=$(terraform output -raw redis_cluster_endpoint || echo 'redis-endpoint-not-found')" >> $GITHUB_ENV
-          echo "REDIS_PORT=$(terraform output -raw redis_cluster_port || echo '6379')" >> $GITHUB_ENV
-          echo "DYNAMODB_TABLE_NAME=$(terraform output -raw dynamodb_table_name || echo 'dynamodb-not-found')" >> $GITHUB_ENV
-          echo "Extracted outputs:"
-          echo "MySQL: $MYSQL_ENDPOINT"
-          echo "Postgres: $POSTGRES_ENDPOINT"
-          echo "Redis: $REDIS_ENDPOINT:$REDIS_PORT"
-          echo "DynamoDB: $DYNAMODB_TABLE_NAME"
-        working-directory: ./environments/${{ inputs.environment }}
+          echo "MYSQL_ENDPOINT=dev-vpc-retail-store-mysql-database.c74240umo210.eu-north-1.rds.amazonaws.com:3306" >> $GITHUB_ENV
+          echo "POSTGRES_ENDPOINT=dev-vpc-retail-store-postgres-database.c74240umo210.eu-north-1.rds.amazonaws.com:5432" >> $GITHUB_ENV
+          echo "REDIS_ENDPOINT=retail-redis.44wxnl.0001.eun1.cache.amazonaws.com" >> $GITHUB_ENV
+          echo "REDIS_PORT=6379" >> $GITHUB_ENV
+          echo "DYNAMODB_TABLE_NAME=dev-retail-dynamodb" >> $GITHUB_ENV
+          echo "Infrastructure endpoints set:"
+          echo "MySQL: dev-vpc-retail-store-mysql-database.c74240umo210.eu-north-1.rds.amazonaws.com:3306"
+          echo "Postgres: dev-vpc-retail-store-postgres-database.c74240umo210.eu-north-1.rds.amazonaws.com:5432"
+          echo "Redis: retail-redis.44wxnl.0001.eun1.cache.amazonaws.com:6379"
+          echo "DynamoDB: dev-retail-dynamodb"
 
       - name: Install yq
         run: |
