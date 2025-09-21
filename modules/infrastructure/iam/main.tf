@@ -280,7 +280,7 @@ resource "aws_iam_role_policy_attachment" "aws_load_balancer_controller" {
 resource "aws_iam_openid_connect_provider" "github_actions" {
   url = "https://token.actions.githubusercontent.com"
   client_id_list = ["sts.amazonaws.com"]
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1", "1c58a3a8518e8759bf075b76b750d4f2df264fcd"]
 }
 
 # GitHub Actions IAM Role
@@ -297,9 +297,7 @@ resource "aws_iam_role" "github_actions" {
       Condition = {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-        }
-        StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:omokarogabriel/gabriel_retail_store:*"
+          "token.actions.githubusercontent.com:sub" = "repo:omokarogabriel/gabriel_retail_store:ref:refs/heads/main"
         }
       }
     }]
