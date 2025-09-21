@@ -31,8 +31,8 @@ jobs:
           role-to-assume: ${{ inputs.environment == 'prod' && secrets.AWS_ROLE_ARN_PROD || inputs.environment == 'staging' && secrets.AWS_ROLE_ARN_STAGING || secrets.AWS_ROLE_ARN_DEV }}
           aws-region: eu-north-1
 
-      - name: Set up Terraform (for outputs)
-        uses: hashicorp/setup-terraform@v2
+      # - name: Set up Terraform (for outputs)
+      #   uses: hashicorp/setup-terraform@v2
 
       - name: Set Infrastructure Endpoints
         run: |
@@ -72,9 +72,10 @@ jobs:
 
       - name: Configure kubectl
         run: |
-          cd ./environments/${{ inputs.environment }}
-          terraform init -backend=false
-          CLUSTER_NAME=$(terraform output -raw eks_cluster_name 2>/dev/null || echo 'dev-vpc-retail-store-eks-cluster')
+          # cd ./environments/${{ inputs.environment }}
+          # terraform init -backend=false
+          # CLUSTER_NAME=$(terraform output -raw eks_cluster_name 2>/dev/null || echo 'dev-vpc-retail-store-eks-cluster')
+          CLUSTER_NAME='dev-vpc-retail-store-eks-cluster'
           aws eks update-kubeconfig --region eu-north-1 --name $CLUSTER_NAME
           echo "Configured kubectl for cluster: $CLUSTER_NAME"
 
@@ -94,9 +95,11 @@ jobs:
         run: |
           helm repo add eks https://aws.github.io/eks-charts
           helm repo update
-          cd ./environments/${{ inputs.environment }}
-          LB_ROLE_ARN=$(terraform output -raw aws_load_balancer_controller_role_arn 2>/dev/null || echo 'arn:aws:iam::438465156402:role/dev-vpc-retail-store-aws-load-balancer-controller')
-          CLUSTER_NAME=$(terraform output -raw eks_cluster_name 2>/dev/null || echo 'dev-vpc-retail-store-eks-cluster')
+          # cd ./environments/${{ inputs.environment }}
+          # LB_ROLE_ARN=$(terraform output -raw aws_load_balancer_controller_role_arn 2>/dev/null || echo 'arn:aws:iam::438465156402:role/dev-vpc-retail-store-aws-load-balancer-controller')
+          # CLUSTER_NAME=$(terraform output -raw eks_cluster_name 2>/dev/null || echo 'dev-vpc-retail-store-eks-cluster')
+          LB_ROLE_ARN='arn:aws:iam::438465156402:role/dev-vpc-retail-store-aws-load-balancer-controller'
+          CLUSTER_NAME='dev-vpc-retail-store-eks-cluster'
           helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
             --namespace kube-system \
             --set clusterName=$CLUSTER_NAME \
@@ -125,9 +128,11 @@ jobs:
 
       - name: Deploy External Secrets
         run: |
-          cd ./environments/${{ inputs.environment }}
-          POSTGRES_SECRET=$(terraform output -raw postgres_secret_name 2>/dev/null || echo 'dev-vpc-retail-store-postgres-password')
-          MYSQL_SECRET=$(terraform output -raw mysql_secret_name 2>/dev/null || echo 'dev-vpc-retail-store-mysql-password')
+          # cd ./environments/${{ inputs.environment }}
+          # POSTGRES_SECRET=$(terraform output -raw postgres_secret_name 2>/dev/null || echo 'dev-vpc-retail-store-postgres-password')
+          # MYSQL_SECRET=$(terraform output -raw mysql_secret_name 2>/dev/null || echo 'dev-vpc-retail-store-mysql-password')
+          POSTGRES_SECRET='dev-vpc-retail-store-postgres-password'
+          MYSQL_SECRET='dev-vpc-retail-store-mysql-password'
           kubectl apply -f - <<EOF
           apiVersion: external-secrets.io/v1beta1
           kind: ExternalSecret
