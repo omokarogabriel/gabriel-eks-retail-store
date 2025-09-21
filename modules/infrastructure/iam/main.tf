@@ -299,7 +299,7 @@ resource "aws_iam_role" "github_actions" {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:omokarogabriel/gabriel_retail_store:*"
+          "token.actions.githubusercontent.com:sub" = "repo:omokarogabriel/gabriel-eks-retail-store:*"
         }
       }
     }]
