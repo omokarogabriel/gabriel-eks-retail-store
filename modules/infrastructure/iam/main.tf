@@ -315,31 +315,20 @@ resource "aws_iam_policy" "github_actions" {
       {
         Effect = "Allow"
         Action = [
-          "ec2:DescribeVpcs",
-          "ec2:DescribeSubnets",
-          "ec2:DescribeSecurityGroups",
-          "ec2:CreateVpc",
-          "ec2:CreateSubnet",
-          "ec2:CreateSecurityGroup",
-          "ec2:CreateTags",
-          "eks:CreateCluster",
-          "eks:DescribeCluster",
-          "eks:CreateNodegroup",
-          "eks:DescribeNodegroup",
-          "rds:CreateDBInstance",
-          "rds:DescribeDBInstances",
-          "rds:CreateDBSubnetGroup",
-          "dynamodb:CreateTable",
-          "dynamodb:DescribeTable",
-          "elasticache:CreateCacheCluster",
-          "elasticache:DescribeCacheClusters",
-          "secretsmanager:CreateSecret",
-          "secretsmanager:GetSecretValue",
-          "iam:CreateRole",
-          "iam:AttachRolePolicy",
-          "iam:GetRole",
-          "sts:AssumeRole",
-          "sts:GetCallerIdentity"
+          "ec2:*",
+          "eks:*",
+          "rds:*",
+          "dynamodb:*",
+          "elasticache:*",
+          "secretsmanager:*",
+          "iam:*",
+          "sts:*",
+          "elasticloadbalancing:*",
+          "route53:*",
+          "acm:*",
+          "logs:*",
+          "cloudformation:*",
+          "s3:*"
         ]
         Resource = "*"
       }
