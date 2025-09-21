@@ -72,10 +72,11 @@ jobs:
 
       - name: Configure kubectl
         run: |
-          CLUSTER_NAME=$(terraform output -raw eks_cluster_name || echo 'dev-vpc-retail-store-eks-cluster')
+          cd ./environments/${{ inputs.environment }}
+          terraform init -backend=false
+          CLUSTER_NAME=$(terraform output -raw eks_cluster_name 2>/dev/null || echo 'dev-vpc-retail-store-eks-cluster')
           aws eks update-kubeconfig --region eu-north-1 --name $CLUSTER_NAME
           echo "Configured kubectl for cluster: $CLUSTER_NAME"
-        working-directory: ./environments/${{ inputs.environment }}
 
       - name: Create namespace
         run: |
@@ -93,15 +94,15 @@ jobs:
         run: |
           helm repo add eks https://aws.github.io/eks-charts
           helm repo update
-          LB_ROLE_ARN=$(terraform output -raw aws_load_balancer_controller_role_arn || echo 'arn:aws:iam::438465156402:role/dev-vpc-retail-store-aws-load-balancer-controller')
-          CLUSTER_NAME=$(terraform output -raw eks_cluster_name || echo 'dev-vpc-retail-store-eks-cluster')
+          cd ./environments/${{ inputs.environment }}
+          LB_ROLE_ARN=$(terraform output -raw aws_load_balancer_controller_role_arn 2>/dev/null || echo 'arn:aws:iam::438465156402:role/dev-vpc-retail-store-aws-load-balancer-controller')
+          CLUSTER_NAME=$(terraform output -raw eks_cluster_name 2>/dev/null || echo 'dev-vpc-retail-store-eks-cluster')
           helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
             --namespace kube-system \
             --set clusterName=$CLUSTER_NAME \
             --set serviceAccount.create=true \
             --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=$LB_ROLE_ARN
           echo "Installed Load Balancer Controller with role: $LB_ROLE_ARN"
-        working-directory: ./environments/${{ inputs.environment }}
 
       - name: Setup External Secrets Store
         run: |
@@ -124,8 +125,9 @@ jobs:
 
       - name: Deploy External Secrets
         run: |
-          POSTGRES_SECRET=$(terraform output -raw postgres_secret_name || echo 'dev-vpc-retail-store-postgres-password')
-          MYSQL_SECRET=$(terraform output -raw mysql_secret_name || echo 'dev-vpc-retail-store-mysql-password')
+          cd ./environments/${{ inputs.environment }}
+          POSTGRES_SECRET=$(terraform output -raw postgres_secret_name 2>/dev/null || echo 'dev-vpc-retail-store-postgres-password')
+          MYSQL_SECRET=$(terraform output -raw mysql_secret_name 2>/dev/null || echo 'dev-vpc-retail-store-mysql-password')
           kubectl apply -f - <<EOF
           apiVersion: external-secrets.io/v1beta1
           kind: ExternalSecret
@@ -162,7 +164,6 @@ jobs:
                 key: $MYSQL_SECRET
           EOF
           echo "Deployed External Secrets for: $POSTGRES_SECRET, $MYSQL_SECRET"
-        working-directory: ./environments/${{ inputs.environment }}
 
       - name: Deploy with Helm
         run: |
