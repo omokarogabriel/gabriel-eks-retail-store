@@ -44,3 +44,17 @@ jobs:
           echo "EKS Cluster: $(terraform output -raw eks_cluster_name)"
           echo "VPC ID: $(terraform output -raw vpc_id)"
         working-directory: ./environments/${{ inputs.environment }}
+
+      - name: Trigger Application Deployment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'application.yaml',
+              ref: 'main',
+              inputs: {
+                environment: '${{ inputs.environment }}'
+              }
+            })
