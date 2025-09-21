@@ -72,17 +72,74 @@ jobs:
 
       - name: Configure kubectl
         run: |
-          # cd ./environments/${{ inputs.environment }}
-          # terraform init -backend=false
-          # CLUSTER_NAME=$(terraform output -raw eks_cluster_name 2>/dev/null || echo 'dev-vpc-retail-store-eks-cluster')
           CLUSTER_NAME='dev-vpc-retail-store-eks-cluster'
-          aws eks update-kubeconfig --region eu-north-1 --name $CLUSTER_NAME
+          echo "Checking if cluster exists..."
+          aws eks describe-cluster --region eu-north-1 --name $CLUSTER_NAME
+          echo "Updating kubeconfig..."
+          aws eks update-kubeconfig --region eu-north-1 --name $CLUSTER_NAME --alias $CLUSTER_NAME
           echo "Configured kubectl for cluster: $CLUSTER_NAME"
+
+      - name: Configure EKS access
+        run: |
+          GITHUB_ROLE_ARN="arn:aws:iam::438465156402:role/dev-vpc-retail-store-github-actions-role"
+          echo "Configuring EKS access for GitHub Actions role..."
+          
+          # Check if aws-auth ConfigMap exists
+          if kubectl get configmap aws-auth -n kube-system >/dev/null 2>&1; then
+            echo "aws-auth ConfigMap exists, updating it..."
+            kubectl get configmap aws-auth -n kube-system -o yaml > aws-auth.yaml
+            
+            # Add GitHub Actions role to mapRoles if not already present
+            if ! grep -q "$GITHUB_ROLE_ARN" aws-auth.yaml; then
+              echo "Adding GitHub Actions role to aws-auth ConfigMap..."
+              kubectl patch configmap aws-auth -n kube-system --patch '
+              data:
+                mapRoles: |
+                  - rolearn: arn:aws:iam::438465156402:role/dev-vpc-retail-store-eks-node-role
+                    username: system:node:{{EC2PrivateDNSName}}
+                    groups:
+                      - system:bootstrappers
+                      - system:nodes
+                  - rolearn: '"$GITHUB_ROLE_ARN"'
+                    username: github-actions
+                    groups:
+                      - system:masters
+              '
+            else
+              echo "GitHub Actions role already configured in aws-auth"
+            fi
+          else
+            echo "Creating aws-auth ConfigMap..."
+            kubectl apply -f - <<EOF
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: aws-auth
+            namespace: kube-system
+          data:
+            mapRoles: |
+              - rolearn: arn:aws:iam::438465156402:role/dev-vpc-retail-store-eks-node-role
+                username: system:node:{{EC2PrivateDNSName}}
+                groups:
+                  - system:bootstrappers
+                  - system:nodes
+              - rolearn: $GITHUB_ROLE_ARN
+                username: github-actions
+                groups:
+                  - system:masters
+          EOF
+          fi
+          
+          echo "Testing cluster access..."
+          kubectl auth can-i '*' '*' --as=github-actions || echo "Auth test completed"
+          kubectl cluster-info
 
       - name: Create namespace
         run: |
-          kubectl create namespace $KUBE_NAMESPACE --dry-run=client -o yaml --validate=false | kubectl apply -f - --validate=false || true
-          kubectl get namespace $KUBE_NAMESPACE || kubectl create namespace $KUBE_NAMESPACE --validate=false
+          echo "Creating namespace: $KUBE_NAMESPACE"
+          kubectl create namespace $KUBE_NAMESPACE || echo "Namespace may already exist"
+          kubectl get namespace $KUBE_NAMESPACE
+          echo "Namespace $KUBE_NAMESPACE is ready"
 
       - name: Install External Secrets Operator
         run: |
