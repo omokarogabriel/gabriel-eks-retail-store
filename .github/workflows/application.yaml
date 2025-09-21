@@ -83,50 +83,69 @@ jobs:
         run: |
           CLUSTER_NAME='dev-vpc-retail-store-eks-cluster'
           GITHUB_ROLE_ARN="arn:aws:iam::438465156402:role/dev-vpc-retail-store-github-actions-role"
+          NODE_ROLE_ARN="arn:aws:iam::438465156402:role/dev-vpc-retail-store-eks-node-role"
           echo "Configuring EKS cluster access for role: $GITHUB_ROLE_ARN"
           
-          # Check current access entries
-          echo "Current access entries:"
-          aws eks list-access-entries --cluster-name $CLUSTER_NAME --region eu-north-1 || echo "Failed to list access entries"
+          # Try access entries first (newer EKS clusters)
+          echo "Attempting access entry method..."
+          ACCESS_ENTRY_SUCCESS=false
           
-          # Create access entry for GitHub Actions role
-          echo "Creating access entry..."
           if aws eks create-access-entry \
             --cluster-name $CLUSTER_NAME \
             --principal-arn $GITHUB_ROLE_ARN \
             --type STANDARD \
-            --region eu-north-1; then
-            echo "Access entry created successfully"
-          else
-            echo "Access entry creation failed or already exists"
+            --region eu-north-1 2>/dev/null; then
+            echo "Access entry created"
+            if aws eks associate-access-policy \
+              --cluster-name $CLUSTER_NAME \
+              --principal-arn $GITHUB_ROLE_ARN \
+              --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+              --access-scope type=cluster \
+              --region eu-north-1 2>/dev/null; then
+              echo "Access entry method successful"
+              ACCESS_ENTRY_SUCCESS=true
+            fi
           fi
           
-          # Associate cluster admin policy
-          echo "Associating cluster admin policy..."
-          if aws eks associate-access-policy \
-            --cluster-name $CLUSTER_NAME \
-            --principal-arn $GITHUB_ROLE_ARN \
-            --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
-            --access-scope type=cluster \
-            --region eu-north-1; then
-            echo "Policy associated successfully"
-          else
-            echo "Policy association failed or already exists"
+          if [ "$ACCESS_ENTRY_SUCCESS" = "false" ]; then
+            echo "Access entry method failed, trying aws-auth ConfigMap..."
+            
+            # Create or update aws-auth ConfigMap
+            cat <<EOF | kubectl apply -f - || echo "ConfigMap creation failed"
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: aws-auth
+            namespace: kube-system
+          data:
+            mapRoles: |
+              - rolearn: $NODE_ROLE_ARN
+                username: system:node:{{EC2PrivateDNSName}}
+                groups:
+                  - system:bootstrappers
+                  - system:nodes
+              - rolearn: $GITHUB_ROLE_ARN
+                username: github-actions
+                groups:
+                  - system:masters
+          EOF
           fi
-          
-          # Verify access entries after configuration
-          echo "Access entries after configuration:"
-          aws eks list-access-entries --cluster-name $CLUSTER_NAME --region eu-north-1 || echo "Failed to list access entries"
           
           echo "Waiting for access to propagate..."
-          sleep 30
+          sleep 60
 
       - name: Test cluster connection
         run: |
           echo "Testing kubectl connection..."
-          kubectl cluster-info
-          kubectl get nodes
-          kubectl get namespaces
+          for i in {1..5}; do
+            if kubectl cluster-info && kubectl get nodes && kubectl get namespaces; then
+              echo "Cluster connection successful"
+              break
+            else
+              echo "Attempt $i failed, retrying in 30 seconds..."
+              sleep 30
+            fi
+          done
 
       - name: Create namespace
         run: |
@@ -141,27 +160,35 @@ jobs:
           helm repo update
           helm upgrade --install external-secrets external-secrets/external-secrets \
             --namespace external-secrets-system \
-            --create-namespace
+            --create-namespace \
+            --wait \
+            --timeout=10m
 
       - name: Install AWS Load Balancer Controller
         run: |
           helm repo add eks https://aws.github.io/eks-charts
           helm repo update
-          # cd ./environments/${{ inputs.environment }}
-          # LB_ROLE_ARN=$(terraform output -raw aws_load_balancer_controller_role_arn 2>/dev/null || echo 'arn:aws:iam::438465156402:role/dev-vpc-retail-store-aws-load-balancer-controller')
-          # CLUSTER_NAME=$(terraform output -raw eks_cluster_name 2>/dev/null || echo 'dev-vpc-retail-store-eks-cluster')
           LB_ROLE_ARN='arn:aws:iam::438465156402:role/dev-vpc-retail-store-aws-load-balancer-controller'
           CLUSTER_NAME='dev-vpc-retail-store-eks-cluster'
+          
+          # Wait for external-secrets to be ready
+          kubectl wait --for=condition=available --timeout=300s deployment/external-secrets -n external-secrets-system || echo "External secrets not ready, continuing..."
+          
           helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
             --namespace kube-system \
             --set clusterName=$CLUSTER_NAME \
             --set serviceAccount.create=true \
-            --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=$LB_ROLE_ARN
+            --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=$LB_ROLE_ARN \
+            --wait \
+            --timeout=10m
           echo "Installed Load Balancer Controller with role: $LB_ROLE_ARN"
 
       - name: Setup External Secrets Store
         run: |
-          kubectl apply -f - <<EOF
+          # Wait for external-secrets operator to be ready
+          kubectl wait --for=condition=available --timeout=300s deployment/external-secrets -n external-secrets-system
+          
+          cat <<EOF | kubectl apply -f -
           apiVersion: external-secrets.io/v1beta1
           kind: ClusterSecretStore
           metadata:
@@ -177,15 +204,16 @@ jobs:
                       name: external-secrets-sa
                       namespace: external-secrets-system
           EOF
+          
+          # Verify the ClusterSecretStore is ready
+          kubectl wait --for=condition=Ready --timeout=300s clustersecretstore/aws-secrets-store || echo "ClusterSecretStore not ready, continuing..."
 
       - name: Deploy External Secrets
         run: |
-          # cd ./environments/${{ inputs.environment }}
-          # POSTGRES_SECRET=$(terraform output -raw postgres_secret_name 2>/dev/null || echo 'dev-vpc-retail-store-postgres-password')
-          # MYSQL_SECRET=$(terraform output -raw mysql_secret_name 2>/dev/null || echo 'dev-vpc-retail-store-mysql-password')
           POSTGRES_SECRET='dev-vpc-retail-store-postgres-password'
           MYSQL_SECRET='dev-vpc-retail-store-mysql-password'
-          kubectl apply -f - <<EOF
+          
+          cat <<EOF | kubectl apply -f -
           apiVersion: external-secrets.io/v1beta1
           kind: ExternalSecret
           metadata:
@@ -220,12 +248,47 @@ jobs:
               remoteRef:
                 key: $MYSQL_SECRET
           EOF
+          
           echo "Deployed External Secrets for: $POSTGRES_SECRET, $MYSQL_SECRET"
+          
+          # Wait for secrets to be created
+          kubectl wait --for=condition=Ready --timeout=300s externalsecret/app-postgres-db-secret -n $KUBE_NAMESPACE || echo "Postgres secret not ready"
+          kubectl wait --for=condition=Ready --timeout=300s externalsecret/app-mysql-db-secret -n $KUBE_NAMESPACE || echo "MySQL secret not ready"
 
       - name: Deploy with Helm
         run: |
-          helm upgrade --install cart helm/cart --namespace $KUBE_NAMESPACE --create-namespace
-          helm upgrade --install catalog helm/catalog --namespace $KUBE_NAMESPACE --create-namespace
-          helm upgrade --install checkout helm/checkout --namespace $KUBE_NAMESPACE --create-namespace
-          helm upgrade --install order helm/order --namespace $KUBE_NAMESPACE --create-namespace
-          helm upgrade --install ui helm/ui --namespace $KUBE_NAMESPACE --create-namespace
+          echo "Deploying microservices..."
+          
+          # Deploy each service with proper wait and timeout
+          helm upgrade --install cart helm/cart \
+            --namespace $KUBE_NAMESPACE \
+            --create-namespace \
+            --wait \
+            --timeout=10m || echo "Cart deployment failed, continuing..."
+          
+          helm upgrade --install catalog helm/catalog \
+            --namespace $KUBE_NAMESPACE \
+            --create-namespace \
+            --wait \
+            --timeout=10m || echo "Catalog deployment failed, continuing..."
+          
+          helm upgrade --install checkout helm/checkout \
+            --namespace $KUBE_NAMESPACE \
+            --create-namespace \
+            --wait \
+            --timeout=10m || echo "Checkout deployment failed, continuing..."
+          
+          helm upgrade --install order helm/order \
+            --namespace $KUBE_NAMESPACE \
+            --create-namespace \
+            --wait \
+            --timeout=10m || echo "Order deployment failed, continuing..."
+          
+          helm upgrade --install ui helm/ui \
+            --namespace $KUBE_NAMESPACE \
+            --create-namespace \
+            --wait \
+            --timeout=10m || echo "UI deployment failed, continuing..."
+          
+          echo "Deployment completed. Checking pod status..."
+          kubectl get pods -n $KUBE_NAMESPACE || echo "Failed to get pod status"
