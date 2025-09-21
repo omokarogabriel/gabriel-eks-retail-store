@@ -8,3 +8,8 @@ variable "vpc_name" {
   type = string
   description = "The name of the vpc"
 }
+
+variable "elasticache_security_group_id" {
+  type = string
+  description = "The ID of the ElastiCache security group"
+}

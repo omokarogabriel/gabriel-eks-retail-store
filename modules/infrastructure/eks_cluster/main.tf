@@ -1,13 +1,59 @@
 ###eks cluster and node group
 
-# Data source to get EKS cluster IAM role
-data "aws_iam_role" "eks_cluster_role" {
+# EKS Cluster IAM Role
+resource "aws_iam_role" "eks_cluster_role" {
   name = "${var.vpc_name}-eks-cluster-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "eks.amazonaws.com"
+        }
+      }
+    ]
+  })
 }
 
-# Data source to get EKS node group IAM role
-data "aws_iam_role" "eks_node_role" {
+resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  role       = aws_iam_role.eks_cluster_role.name
+}
+
+# EKS Node Group IAM Role
+resource "aws_iam_role" "eks_node_role" {
   name = "${var.vpc_name}-eks-node-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+  role       = aws_iam_role.eks_node_role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.eks_node_role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_container_registry_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.eks_node_role.name
 }
 
 # Data source to get VPC
@@ -43,20 +89,20 @@ data "aws_subnets" "private" {
 
 resource "aws_eks_cluster" "retail_eks" {
   name     = "${var.vpc_name}-eks-cluster"
-  role_arn = data.aws_iam_role.eks_cluster_role.arn
+  role_arn = aws_iam_role.eks_cluster_role.arn
   version  = "1.33"
 
   vpc_config {
     subnet_ids              = concat(data.aws_subnets.public.ids, data.aws_subnets.private.ids)
     endpoint_private_access = true
     endpoint_public_access  = true
-    public_access_cidrs     = ["10.0.0.0/16"]
+    public_access_cidrs     = ["0.0.0.0/0"]
   }
 
   enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 
   depends_on = [
-    data.aws_iam_role.eks_cluster_role
+    aws_iam_role_policy_attachment.eks_cluster_policy
   ]
 
   tags = {
@@ -68,7 +114,7 @@ resource "aws_eks_cluster" "retail_eks" {
 resource "aws_eks_node_group" "retail_nodes" {
   cluster_name    = aws_eks_cluster.retail_eks.name
   node_group_name = "${var.vpc_name}-node-group"
-  node_role_arn   = data.aws_iam_role.eks_node_role.arn
+  node_role_arn   = aws_iam_role.eks_node_role.arn
   subnet_ids      = data.aws_subnets.private.ids
 
   capacity_type  = "ON_DEMAND"
@@ -87,7 +133,9 @@ resource "aws_eks_node_group" "retail_nodes" {
 
 
   depends_on = [
-    data.aws_iam_role.eks_node_role
+    aws_iam_role_policy_attachment.eks_worker_node_policy,
+    aws_iam_role_policy_attachment.eks_cni_policy,
+    aws_iam_role_policy_attachment.eks_container_registry_policy
   ]
 
   tags = {

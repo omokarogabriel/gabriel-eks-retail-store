@@ -1,9 +1,11 @@
-##namespace for helm
-resource "kubernetes_namespace" "retail_ns" {
-  metadata {
-    name = "${var.vpc_name}-${var.namespace}"
-  }
-}
+##namespace for helm - commented out until cluster is ready
+# resource "kubernetes_namespace" "retail_ns" {
+#   metadata {
+#     name = "${var.vpc_name}-${var.namespace}"
+#   }
+# }
+
+# Namespace will be created in application deployment phase
 
 
 

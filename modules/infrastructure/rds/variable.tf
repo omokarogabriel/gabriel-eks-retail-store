@@ -19,3 +19,8 @@ variable "mysql_username" {
   description = "The username for mysql db"
 }
 
+variable "rds_security_group_id" {
+  type = string
+  description = "The ID of the RDS security group"
+}
+

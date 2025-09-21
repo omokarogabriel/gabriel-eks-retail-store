@@ -20,14 +20,7 @@ data "aws_subnets" "private" {
   }
 }
 
-# Data source to get elasticache security group
-data "aws_security_group" "elasticache_sg" {
-  filter {
-    name   = "group-name"
-    values = ["${var.vpc_name}-elasticache-sg"]
-  }
-  vpc_id = data.aws_vpc.retail_vpc.id
-}
+# Use passed security group ID instead of data lookup
 
 ##redis subnet group
 resource "aws_elasticache_subnet_group" "redis_subnet_group" {
@@ -42,7 +35,7 @@ resource "aws_elasticache_cluster" "redis" {
   node_type                               = "cache.t3.micro"
   num_cache_nodes                         = 1
   subnet_group_name                       = aws_elasticache_subnet_group.redis_subnet_group.name
-  security_group_ids                      = [data.aws_security_group.elasticache_sg.id]
+  security_group_ids                      = [var.elasticache_security_group_id]
   port                                    = 6379
 
 

@@ -94,23 +94,99 @@ jobs:
         with:
           version: "latest"
 
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --region us-east-1 --name $(terraform output -raw eks_cluster_name)
+        working-directory: ./environments/${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
+
+      - name: Create namespace
+        run: |
+          kubectl create namespace $KUBE_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Install External Secrets Operator
+        run: |
+          helm repo add external-secrets https://charts.external-secrets.io
+          helm repo update
+          helm upgrade --install external-secrets external-secrets/external-secrets \
+            --namespace external-secrets-system \
+            --create-namespace
+
       - name: Install AWS Load Balancer Controller
         run: |
           helm repo add eks https://aws.github.io/eks-charts
           helm repo update
           LB_ROLE_ARN=$(terraform output -raw aws_load_balancer_controller_role_arn)
+          CLUSTER_NAME=$(terraform output -raw eks_cluster_name)
           helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
             --namespace kube-system \
-            --set clusterName=$KUBE_NAMESPACE \
+            --set clusterName=$CLUSTER_NAME \
             --set serviceAccount.create=true \
             --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=$LB_ROLE_ARN
         working-directory: ./environments/${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
 
+      - name: Setup External Secrets Store
+        run: |
+          kubectl apply -f - <<EOF
+          apiVersion: external-secrets.io/v1beta1
+          kind: ClusterSecretStore
+          metadata:
+            name: aws-secrets-store
+          spec:
+            provider:
+              aws:
+                service: SecretsManager
+                region: us-east-1
+                auth:
+                  jwt:
+                    serviceAccountRef:
+                      name: external-secrets-sa
+                      namespace: external-secrets-system
+          EOF
+
+
+      - name: Deploy External Secrets
+        run: |
+          kubectl apply -f - <<EOF
+          apiVersion: external-secrets.io/v1beta1
+          kind: ExternalSecret
+          metadata:
+            name: app-postgres-db-secret
+            namespace: $KUBE_NAMESPACE
+          spec:
+            refreshInterval: 1h
+            secretStoreRef:
+              name: aws-secrets-store
+              kind: ClusterSecretStore
+            target:
+              name: app-postgres-db-secret
+            data:
+            - secretKey: password
+              remoteRef:
+                key: $(terraform output -raw postgres_secret_name)
+          ---
+          apiVersion: external-secrets.io/v1beta1
+          kind: ExternalSecret
+          metadata:
+            name: app-mysql-db-secret
+            namespace: $KUBE_NAMESPACE
+          spec:
+            refreshInterval: 1h
+            secretStoreRef:
+              name: aws-secrets-store
+              kind: ClusterSecretStore
+            target:
+              name: app-mysql-db-secret
+            data:
+            - secretKey: password
+              remoteRef:
+                key: $(terraform output -raw mysql_secret_name)
+          EOF
+        working-directory: ./environments/${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
 
       - name: Deploy with Helm
         run: |
-          helm upgrade --install cart helm/cart --namespace $KUBE_NAMESPACE
-          helm upgrade --install catalog helm/catalog --namespace $KUBE_NAMESPACE
-          helm upgrade --install checkout helm/checkout --namespace $KUBE_NAMESPACE
-          helm upgrade --install order helm/order --namespace $KUBE_NAMESPACE
-          helm upgrade --install ui helm/ui --namespace $KUBE_NAMESPACE
+          helm upgrade --install cart helm/cart --namespace $KUBE_NAMESPACE --create-namespace
+          helm upgrade --install catalog helm/catalog --namespace $KUBE_NAMESPACE --create-namespace
+          helm upgrade --install checkout helm/checkout --namespace $KUBE_NAMESPACE --create-namespace
+          helm upgrade --install order helm/order --namespace $KUBE_NAMESPACE --create-namespace
+          helm upgrade --install ui helm/ui --namespace $KUBE_NAMESPACE --create-namespace

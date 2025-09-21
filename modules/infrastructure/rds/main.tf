@@ -20,14 +20,7 @@ data "aws_subnets" "private" {
   }
 }
 
-# Data source to get RDS security group
-data "aws_security_group" "rds_sg" {
-  filter {
-    name   = "group-name"
-    values = ["${var.vpc_name}-rds-sg"]
-  }
-  vpc_id = data.aws_vpc.retail_vpc.id
-}
+# Use passed security group ID instead of data lookup
 
 # Data source to get PostgreSQL password from Secrets Manager
 data "aws_secretsmanager_secret" "postgres_password" {
@@ -62,7 +55,7 @@ resource "aws_db_instance" "postgres" {
   identifier                              = "${var.vpc_name}-postgres-database"
 
   engine                                  = "postgres"
-  engine_version                          = "15.3"
+  engine_version                          = "15.7"
   instance_class                          = "db.t3.medium"
 
   allocated_storage                       = 20
@@ -76,7 +69,7 @@ resource "aws_db_instance" "postgres" {
   iam_database_authentication_enabled    = true
 
   db_subnet_group_name                    = aws_db_subnet_group.rds_subnet_group.name
-  vpc_security_group_ids                  = [data.aws_security_group.rds_sg.id]
+  vpc_security_group_ids                  = [var.rds_security_group_id]
 
   multi_az                                = true
   publicly_accessible                     = false
@@ -125,7 +118,7 @@ resource "aws_db_instance" "mysql" {
   
   db_subnet_group_name                     = aws_db_subnet_group.rds_subnet_group.name
 #   parameter_group_name   = aws_db_parameter_group.retail_db.name
-  vpc_security_group_ids                   = [data.aws_security_group.rds_sg.id]
+  vpc_security_group_ids                   = [var.rds_security_group_id]
 
   multi_az                                 = true
   publicly_accessible                      = false

@@ -83,6 +83,7 @@ resource "aws_security_group" "rds_sg" {
 
   tags = {
     Name = "${var.vpc_name}-rds-sg"
+    Type = "rds"
   }
 }
 
@@ -108,6 +109,7 @@ resource "aws_security_group" "elasticache_sg" {
 
   tags = {
     Name = "${var.vpc_name}-elasticache-sg"
+    Type = "elasticache"
   }
 }
 

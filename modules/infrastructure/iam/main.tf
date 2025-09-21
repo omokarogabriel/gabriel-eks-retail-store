@@ -1,64 +1,11 @@
-###role and policy for eks cluster
-resource "aws_iam_role" "eks_cluster_role" {
-  name = "${var.vpc_name}-eks-cluster-role"
+# OIDC and Service Account IAM roles (created after EKS cluster exists)
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "eks.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-  role       = aws_iam_role.eks_cluster_role.name
-}
-
-
-# EKS Node Group IAM Role
-resource "aws_iam_role" "eks_node_role" {
-  name = "${var.vpc_name}-eks-node-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ec2.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = aws_iam_role.eks_node_role.name
-}
-
-resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.eks_node_role.name
-}
-
-resource "aws_iam_role_policy_attachment" "eks_container_registry_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = aws_iam_role.eks_node_role.name
-}
-
+# Get EKS cluster data
 data "aws_eks_cluster" "retail_eks" {
   name = "${var.vpc_name}-eks-cluster"
 }
 
+# EKS OIDC Provider
 data "tls_certificate" "eks_oidc" {
   url = data.aws_eks_cluster.retail_eks.identity[0].oidc[0].issuer
 }
@@ -67,6 +14,10 @@ resource "aws_iam_openid_connect_provider" "eks_oidc" {
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = [data.tls_certificate.eks_oidc.certificates[0].sha1_fingerprint]
   url             = data.aws_eks_cluster.retail_eks.identity[0].oidc[0].issuer
+  
+  tags = {
+    Name = "${var.vpc_name}-eks-oidc"
+  }
 }
 
 
