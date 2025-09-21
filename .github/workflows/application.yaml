@@ -1,22 +1,26 @@
-name: Build, Test, and Deploy
+name: Deploy Applications
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
 
 jobs:
-  build-test-deploy:
+  application:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
     env:
-      KUBE_NAMESPACE: ${{ secrets.KUBE_NAMESPACE_DEV }}
-      KUBECONFIG: ${{ github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' && secrets.KUBECONFIG_PROD || github.event_name == 'workflow_dispatch' && inputs.environment == 'staging' && secrets.KUBECONFIG_STAGING || secrets.KUBECONFIG_DEV }}
+      KUBE_NAMESPACE: ${{ inputs.environment == 'prod' && secrets.KUBE_NAMESPACE_PROD || inputs.environment == 'staging' && secrets.KUBE_NAMESPACE_STAGING || secrets.KUBE_NAMESPACE_DEV }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -24,40 +28,21 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
+          role-to-assume: ${{ inputs.environment == 'prod' && secrets.AWS_ROLE_ARN_PROD || inputs.environment == 'staging' && secrets.AWS_ROLE_ARN_STAGING || secrets.AWS_ROLE_ARN_DEV }}
           aws-region: us-east-1
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "18"
-
-      - name: Install dependencies
-        run: |
-          npm install || true
-
-      - name: Run tests
-        run: |
-          npm test || true
-
-      - name: Set up Terraform
+      - name: Set up Terraform (for outputs)
         uses: hashicorp/setup-terraform@v2
 
-      - name: Terraform Init & Apply
+      - name: Extract Terraform Outputs
         run: |
           terraform init
-          terraform apply -auto-approve
-        working-directory: ./environments/dev
-
-      - name: Extract Terraform Outputs
-        id: tfoutputs
-        run: |
           echo "MYSQL_ENDPOINT=$(terraform output -raw mysql_instance_endpoint)" >> $GITHUB_ENV
           echo "POSTGRES_ENDPOINT=$(terraform output -raw postgres_instance_endpoint)" >> $GITHUB_ENV
           echo "REDIS_ENDPOINT=$(terraform output -raw redis_cluster_endpoint)" >> $GITHUB_ENV
           echo "REDIS_PORT=$(terraform output -raw redis_cluster_port)" >> $GITHUB_ENV
           echo "DYNAMODB_TABLE_NAME=$(terraform output -raw dynamodb_table_name)" >> $GITHUB_ENV
-        working-directory: ./environments/dev
+        working-directory: ./environments/${{ inputs.environment }}
 
       - name: Install yq
         run: |
@@ -76,7 +61,6 @@ jobs:
           yq e '.microservices.redisEndpoint = env(REDIS_ENDPOINT)' -i helm/ui/values.yaml
           yq e '.microservices.redisPort = env(REDIS_PORT)' -i helm/ui/values.yaml
           yq e '.microservices.dynamodbTableName = env(DYNAMODB_TABLE_NAME)' -i helm/ui/values.yaml
-        shell: bash
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
@@ -85,8 +69,9 @@ jobs:
 
       - name: Configure kubectl
         run: |
+          terraform init
           aws eks update-kubeconfig --region us-east-1 --name $(terraform output -raw eks_cluster_name)
-        working-directory: ./environments/dev
+        working-directory: ./environments/${{ inputs.environment }}
 
       - name: Create namespace
         run: |
@@ -104,6 +89,7 @@ jobs:
         run: |
           helm repo add eks https://aws.github.io/eks-charts
           helm repo update
+          terraform init
           LB_ROLE_ARN=$(terraform output -raw aws_load_balancer_controller_role_arn)
           CLUSTER_NAME=$(terraform output -raw eks_cluster_name)
           helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
@@ -111,7 +97,7 @@ jobs:
             --set clusterName=$CLUSTER_NAME \
             --set serviceAccount.create=true \
             --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=$LB_ROLE_ARN
-        working-directory: ./environments/dev
+        working-directory: ./environments/${{ inputs.environment }}
 
       - name: Setup External Secrets Store
         run: |
@@ -132,9 +118,9 @@ jobs:
                       namespace: external-secrets-system
           EOF
 
-
       - name: Deploy External Secrets
         run: |
+          terraform init
           kubectl apply -f - <<EOF
           apiVersion: external-secrets.io/v1beta1
           kind: ExternalSecret
@@ -170,7 +156,7 @@ jobs:
               remoteRef:
                 key: $(terraform output -raw mysql_secret_name)
           EOF
-        working-directory: ./environments/dev
+        working-directory: ./environments/${{ inputs.environment }}
 
       - name: Deploy with Helm
         run: |
