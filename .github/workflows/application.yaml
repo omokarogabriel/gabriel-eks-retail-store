@@ -83,67 +83,69 @@ jobs:
         run: |
           CLUSTER_NAME='dev-vpc-retail-store-eks-cluster'
           GITHUB_ROLE_ARN="arn:aws:iam::438465156402:role/dev-vpc-retail-store-github-actions-role"
-          NODE_ROLE_ARN="arn:aws:iam::438465156402:role/dev-vpc-retail-store-eks-node-role"
           echo "Configuring EKS cluster access for role: $GITHUB_ROLE_ARN"
           
-          # Try access entries first (newer EKS clusters)
-          echo "Attempting access entry method..."
-          ACCESS_ENTRY_SUCCESS=false
+          # Get current AWS identity to verify we have the right permissions
+          echo "Current AWS identity:"
+          aws sts get-caller-identity
           
+          # Try to add the GitHub Actions role as cluster admin using AWS CLI
+          echo "Adding GitHub Actions role to EKS cluster..."
+          
+          # Method 1: Try access entries (EKS v1.23+)
           if aws eks create-access-entry \
             --cluster-name $CLUSTER_NAME \
             --principal-arn $GITHUB_ROLE_ARN \
             --type STANDARD \
             --region eu-north-1 2>/dev/null; then
-            echo "Access entry created"
+            echo "✓ Access entry created successfully"
+            
             if aws eks associate-access-policy \
               --cluster-name $CLUSTER_NAME \
               --principal-arn $GITHUB_ROLE_ARN \
               --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
               --access-scope type=cluster \
               --region eu-north-1 2>/dev/null; then
-              echo "Access entry method successful"
-              ACCESS_ENTRY_SUCCESS=true
+              echo "✓ Cluster admin policy associated successfully"
+            else
+              echo "⚠ Policy association failed, but access entry exists"
             fi
+          else
+            echo "⚠ Access entry creation failed - may already exist or cluster uses aws-auth ConfigMap"
           fi
           
-          if [ "$ACCESS_ENTRY_SUCCESS" = "false" ]; then
-            echo "Access entry method failed, trying aws-auth ConfigMap..."
-            
-            # Create or update aws-auth ConfigMap
-            cat <<EOF | kubectl apply -f - || echo "ConfigMap creation failed"
-          apiVersion: v1
-          kind: ConfigMap
-          metadata:
-            name: aws-auth
-            namespace: kube-system
-          data:
-            mapRoles: |
-              - rolearn: $NODE_ROLE_ARN
-                username: system:node:{{EC2PrivateDNSName}}
-                groups:
-                  - system:bootstrappers
-                  - system:nodes
-              - rolearn: $GITHUB_ROLE_ARN
-                username: github-actions
-                groups:
-                  - system:masters
-          EOF
-          fi
+          # Verify access entries
+          echo "Current access entries:"
+          aws eks list-access-entries --cluster-name $CLUSTER_NAME --region eu-north-1 || echo "Failed to list access entries"
           
-          echo "Waiting for access to propagate..."
-          sleep 60
+          echo "Waiting for access configuration to propagate..."
+          sleep 90
 
       - name: Test cluster connection
         run: |
           echo "Testing kubectl connection..."
-          for i in {1..5}; do
+          
+          # First, refresh kubeconfig to ensure we have the latest configuration
+          aws eks update-kubeconfig --region eu-north-1 --name dev-vpc-retail-store-eks-cluster --alias dev-cluster
+          
+          # Test connection with retries
+          for i in {1..8}; do
+            echo "Connection attempt $i/8..."
             if kubectl cluster-info && kubectl get nodes && kubectl get namespaces; then
-              echo "Cluster connection successful"
+              echo "✓ Cluster connection successful!"
+              kubectl config current-context
               break
             else
-              echo "Attempt $i failed, retrying in 30 seconds..."
-              sleep 30
+              if [ $i -eq 8 ]; then
+                echo "❌ All connection attempts failed. Checking cluster status..."
+                aws eks describe-cluster --name dev-vpc-retail-store-eks-cluster --region eu-north-1 --query 'cluster.status'
+                echo "Kubeconfig contents:"
+                kubectl config view --minify
+                exit 1
+              else
+                echo "⚠ Attempt $i failed, retrying in 45 seconds..."
+                sleep 45
+              fi
             fi
           done
 
