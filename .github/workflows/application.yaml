@@ -81,7 +81,8 @@ jobs:
 
       - name: Create namespace
         run: |
-          kubectl create namespace $KUBE_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace $KUBE_NAMESPACE --dry-run=client -o yaml --validate=false | kubectl apply -f - --validate=false || true
+          kubectl get namespace $KUBE_NAMESPACE || kubectl create namespace $KUBE_NAMESPACE --validate=false
 
       - name: Install External Secrets Operator
         run: |
