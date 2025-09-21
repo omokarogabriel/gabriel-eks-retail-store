@@ -79,43 +79,43 @@ jobs:
           aws eks update-kubeconfig --region eu-north-1 --name $CLUSTER_NAME --alias $CLUSTER_NAME
           echo "Configured kubectl for cluster: $CLUSTER_NAME"
 
-      - name: Install eksctl
-        run: |
-          curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
-          sudo mv /tmp/eksctl /usr/local/bin
-          eksctl version
-
       - name: Configure EKS access
         run: |
           CLUSTER_NAME='dev-vpc-retail-store-eks-cluster'
           GITHUB_ROLE_ARN="arn:aws:iam::438465156402:role/dev-vpc-retail-store-github-actions-role"
-          echo "Configuring EKS cluster access using eksctl..."
+          echo "Configuring EKS cluster access..."
           
-          # Use eksctl to create iamidentitymapping
-          eksctl create iamidentitymapping \
-            --cluster $CLUSTER_NAME \
-            --region eu-north-1 \
-            --arn $GITHUB_ROLE_ARN \
-            --group system:masters \
-            --username github-actions || echo "Identity mapping may already exist"
+          # Create access entry for GitHub Actions role
+          aws eks create-access-entry \
+            --cluster-name $CLUSTER_NAME \
+            --principal-arn $GITHUB_ROLE_ARN \
+            --type STANDARD \
+            --region eu-north-1 || echo "Access entry may already exist"
           
-          echo "Waiting for access configuration to propagate..."
-          sleep 15
+          # Associate cluster admin policy
+          aws eks associate-access-policy \
+            --cluster-name $CLUSTER_NAME \
+            --principal-arn $GITHUB_ROLE_ARN \
+            --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+            --access-scope type=cluster \
+            --region eu-north-1 || echo "Policy may already be associated"
+          
+          echo "Waiting for access to propagate..."
+          sleep 30
 
-      - name: Wait and test connection
+      - name: Test cluster connection
         run: |
-          echo "Waiting for EKS access to be ready..."
-          sleep 15
           echo "Testing kubectl connection..."
-          kubectl get nodes || echo "Node access may be limited"
-          kubectl get namespaces || echo "Namespace access may be limited"
+          kubectl cluster-info
+          kubectl get nodes
+          kubectl get namespaces
 
       - name: Create namespace
         run: |
           echo "Creating namespace: $KUBE_NAMESPACE"
           kubectl create namespace $KUBE_NAMESPACE || echo "Namespace may already exist"
-          kubectl get namespace $KUBE_NAMESPACE || echo "Checking namespace status"
-          echo "Namespace operation completed"
+          kubectl get namespace $KUBE_NAMESPACE
+          echo "Namespace $KUBE_NAMESPACE is ready"
 
       - name: Install External Secrets Operator
         run: |

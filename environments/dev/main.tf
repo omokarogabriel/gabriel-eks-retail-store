@@ -83,14 +83,4 @@ module "elasticache" {
   ]
 }
 
-# Namespace and Helm releases will be handled in application deployment phase
-# module "namespace_helm_release" {
-#   source    = "../../modules/infrastructure/namespace_helm_release"
-#   namespace = var.namespace
-#   vpc_name  = var.vpc_name
-
-#   depends_on = [
-#     module.eks_cluster,
-#     module.iam
-#   ]
-# }
+# EKS authentication will be handled in GitHub Actions workflow

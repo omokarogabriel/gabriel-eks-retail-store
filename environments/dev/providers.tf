@@ -24,6 +24,3 @@ terraform {
 provider "aws" {
   region = var.region
 }
-
-# Kubernetes provider will be configured after EKS cluster is created
-# This is handled in the application modules that need it
