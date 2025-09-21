@@ -8,3 +8,8 @@ variable "cidr" {
   type = string
   description = "The vpc cidr block"
 }
+
+variable "vpc_id" {
+  type = string
+  description = "The VPC ID"
+}

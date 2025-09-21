@@ -24,3 +24,8 @@ variable "rds_security_group_id" {
   description = "The ID of the RDS security group"
 }
 
+variable "vpc_id" {
+  type = string
+  description = "The VPC ID"
+}
+

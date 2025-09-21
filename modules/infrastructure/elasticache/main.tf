@@ -1,18 +1,15 @@
 ##rds for redis db
 
-# Data source to get VPC
-data "aws_vpc" "retail_vpc" {
-  filter {
-    name   = "tag:Name"
-    values = [var.vpc_name]
-  }
+# Use passed VPC ID
+locals {
+  vpc_id = var.vpc_id
 }
 
 # Data source to get private subnets
 data "aws_subnets" "private" {
   filter {
     name   = "vpc-id"
-    values = [data.aws_vpc.retail_vpc.id]
+    values = [local.vpc_id]
   }
   filter {
     name   = "tag:Name"

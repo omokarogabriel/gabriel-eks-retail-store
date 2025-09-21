@@ -56,19 +56,16 @@ resource "aws_iam_role_policy_attachment" "eks_container_registry_policy" {
   role       = aws_iam_role.eks_node_role.name
 }
 
-# Data source to get VPC
-data "aws_vpc" "retail_vpc" {
-  filter {
-    name   = "tag:Name"
-    values = [var.vpc_name]
-  }
+# Use passed VPC ID
+locals {
+  vpc_id = var.vpc_id
 }
 
 # Data source to get subnets
 data "aws_subnets" "public" {
   filter {
     name   = "vpc-id"
-    values = [data.aws_vpc.retail_vpc.id]
+    values = [local.vpc_id]
   }
   filter {
     name   = "tag:Name"
@@ -79,7 +76,7 @@ data "aws_subnets" "public" {
 data "aws_subnets" "private" {
   filter {
     name   = "vpc-id"
-    values = [data.aws_vpc.retail_vpc.id]
+    values = [local.vpc_id]
   }
   filter {
     name   = "tag:Name"

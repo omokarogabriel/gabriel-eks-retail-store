@@ -13,3 +13,8 @@ variable "elasticache_security_group_id" {
   type = string
   description = "The ID of the ElastiCache security group"
 }
+
+variable "vpc_id" {
+  type = string
+  description = "The VPC ID"
+}

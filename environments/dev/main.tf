@@ -10,6 +10,7 @@ module "networking" {
 module "security_group" {
   source   = "../../modules/infrastructure/security-group"
   vpc_name = var.vpc_name
+  vpc_id   = module.networking.vpc_id
   cidr     = var.cidr
   
   depends_on = [module.networking]
@@ -19,6 +20,7 @@ module "security_group" {
 module "eks_cluster" {
   source   = "../../modules/infrastructure/eks_cluster"
   vpc_name = var.vpc_name
+  vpc_id   = module.networking.vpc_id
   
   depends_on = [
     module.networking,
@@ -41,6 +43,7 @@ module "rds" {
   source                = "../../modules/infrastructure/rds"
   rds_subnet_group_name = var.rds_subnet_group_name
   vpc_name              = var.vpc_name
+  vpc_id                = module.networking.vpc_id
   postgres_username     = var.postgres_username
   mysql_username        = var.mysql_username
   rds_security_group_id = module.security_group.rds_sg_id
@@ -70,6 +73,7 @@ module "dynamodb" {
 module "elasticache" {
   source                     = "../../modules/infrastructure/elasticache"
   vpc_name                   = var.vpc_name
+  vpc_id                     = module.networking.vpc_id
   redis_subnet_group_name    = var.redis_subnet_group_name
   elasticache_security_group_id = module.security_group.elasticache_sg_id
   
