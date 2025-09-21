@@ -3,6 +3,11 @@
 
 resource "aws_secretsmanager_secret" "mysql_password" {
   name = "${var.vpc_name}-mysql-password"
+  
+  lifecycle {
+    ignore_changes = [name]
+  }
+  
   tags = {
     Name = "${var.vpc_name}-mysql-password"
   }
@@ -15,6 +20,11 @@ resource "aws_secretsmanager_secret_version" "mysql_password" {
 
 resource "aws_secretsmanager_secret" "postgres_password" {
   name = "${var.vpc_name}-postgres-password"
+  
+  lifecycle {
+    ignore_changes = [name]
+  }
+  
   tags = {
     Name = "${var.vpc_name}-postgres-password"
   }

@@ -10,6 +10,10 @@ data "aws_vpc" "retail_vpc" {
     name   = "tag:Name"
     values = [var.vpc_name]
   }
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
 }
 
 # Additional Security Group for EKS Worker Nodes

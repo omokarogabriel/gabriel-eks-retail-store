@@ -41,6 +41,11 @@ jobs:
         with:
           version: "latest"
 
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --region us-east-1 --name $(terraform output -raw eks_cluster_name)
+        working-directory: ./environments/${{ inputs.environment }}
+
       - name: Uninstall Helm releases
         run: |
           helm uninstall ui --namespace $KUBE_NAMESPACE || true
@@ -48,6 +53,13 @@ jobs:
           helm uninstall checkout --namespace $KUBE_NAMESPACE || true
           helm uninstall catalog --namespace $KUBE_NAMESPACE || true
           helm uninstall cart --namespace $KUBE_NAMESPACE || true
+          helm uninstall aws-load-balancer-controller --namespace kube-system || true
+          helm uninstall external-secrets --namespace external-secrets-system || true
+
+      - name: Delete Kubernetes resources
+        run: |
+          kubectl delete namespace $KUBE_NAMESPACE || true
+          kubectl delete namespace external-secrets-system || true
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
