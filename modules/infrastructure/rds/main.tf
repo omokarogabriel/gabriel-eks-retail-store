@@ -52,7 +52,7 @@ resource "aws_db_instance" "postgres" {
   identifier                              = "${var.vpc_name}-postgres-database"
 
   engine                                  = "postgres"
-  engine_version                          = "15.7"
+  engine_version                          = "15.12"
   instance_class                          = "db.t3.medium"
 
   allocated_storage                       = 20

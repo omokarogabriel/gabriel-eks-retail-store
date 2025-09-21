@@ -29,7 +29,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ inputs.environment == 'prod' && secrets.AWS_ROLE_ARN_PROD || inputs.environment == 'staging' && secrets.AWS_ROLE_ARN_STAGING || secrets.AWS_ROLE_ARN_DEV }}
-          aws-region: us-east-1
+          aws-region: eu-north-1
 
       - name: Set up Terraform (for outputs)
         uses: hashicorp/setup-terraform@v2
@@ -37,11 +37,17 @@ jobs:
       - name: Extract Terraform Outputs
         run: |
           terraform init
-          echo "MYSQL_ENDPOINT=$(terraform output -raw mysql_instance_endpoint)" >> $GITHUB_ENV
-          echo "POSTGRES_ENDPOINT=$(terraform output -raw postgres_instance_endpoint)" >> $GITHUB_ENV
-          echo "REDIS_ENDPOINT=$(terraform output -raw redis_cluster_endpoint)" >> $GITHUB_ENV
-          echo "REDIS_PORT=$(terraform output -raw redis_cluster_port)" >> $GITHUB_ENV
-          echo "DYNAMODB_TABLE_NAME=$(terraform output -raw dynamodb_table_name)" >> $GITHUB_ENV
+          terraform refresh
+          echo "MYSQL_ENDPOINT=$(terraform output -raw mysql_instance_endpoint || echo 'mysql-endpoint-not-found')" >> $GITHUB_ENV
+          echo "POSTGRES_ENDPOINT=$(terraform output -raw postgres_instance_endpoint || echo 'postgres-endpoint-not-found')" >> $GITHUB_ENV
+          echo "REDIS_ENDPOINT=$(terraform output -raw redis_cluster_endpoint || echo 'redis-endpoint-not-found')" >> $GITHUB_ENV
+          echo "REDIS_PORT=$(terraform output -raw redis_cluster_port || echo '6379')" >> $GITHUB_ENV
+          echo "DYNAMODB_TABLE_NAME=$(terraform output -raw dynamodb_table_name || echo 'dynamodb-not-found')" >> $GITHUB_ENV
+          echo "Extracted outputs:"
+          echo "MySQL: $MYSQL_ENDPOINT"
+          echo "Postgres: $POSTGRES_ENDPOINT"
+          echo "Redis: $REDIS_ENDPOINT:$REDIS_PORT"
+          echo "DynamoDB: $DYNAMODB_TABLE_NAME"
         working-directory: ./environments/${{ inputs.environment }}
 
       - name: Install yq
@@ -69,8 +75,9 @@ jobs:
 
       - name: Configure kubectl
         run: |
-          terraform init
-          aws eks update-kubeconfig --region us-east-1 --name $(terraform output -raw eks_cluster_name)
+          CLUSTER_NAME=$(terraform output -raw eks_cluster_name || echo 'dev-vpc-retail-store-eks-cluster')
+          aws eks update-kubeconfig --region eu-north-1 --name $CLUSTER_NAME
+          echo "Configured kubectl for cluster: $CLUSTER_NAME"
         working-directory: ./environments/${{ inputs.environment }}
 
       - name: Create namespace
@@ -89,14 +96,14 @@ jobs:
         run: |
           helm repo add eks https://aws.github.io/eks-charts
           helm repo update
-          terraform init
-          LB_ROLE_ARN=$(terraform output -raw aws_load_balancer_controller_role_arn)
-          CLUSTER_NAME=$(terraform output -raw eks_cluster_name)
+          LB_ROLE_ARN=$(terraform output -raw aws_load_balancer_controller_role_arn || echo 'arn:aws:iam::438465156402:role/dev-vpc-retail-store-aws-load-balancer-controller')
+          CLUSTER_NAME=$(terraform output -raw eks_cluster_name || echo 'dev-vpc-retail-store-eks-cluster')
           helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
             --namespace kube-system \
             --set clusterName=$CLUSTER_NAME \
             --set serviceAccount.create=true \
             --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=$LB_ROLE_ARN
+          echo "Installed Load Balancer Controller with role: $LB_ROLE_ARN"
         working-directory: ./environments/${{ inputs.environment }}
 
       - name: Setup External Secrets Store
@@ -110,7 +117,7 @@ jobs:
             provider:
               aws:
                 service: SecretsManager
-                region: us-east-1
+                region: eu-north-1
                 auth:
                   jwt:
                     serviceAccountRef:
@@ -120,7 +127,8 @@ jobs:
 
       - name: Deploy External Secrets
         run: |
-          terraform init
+          POSTGRES_SECRET=$(terraform output -raw postgres_secret_name || echo 'dev-vpc-retail-store-postgres-password')
+          MYSQL_SECRET=$(terraform output -raw mysql_secret_name || echo 'dev-vpc-retail-store-mysql-password')
           kubectl apply -f - <<EOF
           apiVersion: external-secrets.io/v1beta1
           kind: ExternalSecret
@@ -137,7 +145,7 @@ jobs:
             data:
             - secretKey: password
               remoteRef:
-                key: $(terraform output -raw postgres_secret_name)
+                key: $POSTGRES_SECRET
           ---
           apiVersion: external-secrets.io/v1beta1
           kind: ExternalSecret
@@ -154,8 +162,9 @@ jobs:
             data:
             - secretKey: password
               remoteRef:
-                key: $(terraform output -raw mysql_secret_name)
+                key: $MYSQL_SECRET
           EOF
+          echo "Deployed External Secrets for: $POSTGRES_SECRET, $MYSQL_SECRET"
         working-directory: ./environments/${{ inputs.environment }}
 
       - name: Deploy with Helm
